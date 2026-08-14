@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ders Değişimi</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #f2f4f7;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .login-box {
+    background: white;
+    padding: 32px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 360px;
+  }
+  .login-box h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .login-box input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 15px;
+  }
+  .login-box button {
+    width: 100%;
+    padding: 10px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .login-box button:hover { background: #1d4ed8; }
+  #hata-mesaji {
+    color: #dc2626;
+    font-size: 13px;
+    margin-top: 8px;
+    text-align: center;
+  }
+  #app-alani { display: none; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="giris-alani" class="login-box">
+  <h1>Ders Değişimi - Giriş</h1>
+  <input type="text" id="kullanici-adi" placeholder="Kullanıcı adı veya email">
+  <input type="password" id="sifre" placeholder="Şifre">
+  <button onclick="girisYap()">Giriş Yap</button>
+  <div id="hata-mesaji"></div>
+</div>
+
+<div id="app-alani">
+  <p id="hosgeldin-mesaji"></p>
+  <button onclick="cikisYap()">Çıkış Yap</button>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://pnkpovgpmraaduuniurz.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_N3lbUDiriU7EhHspUOY8pw_2Kw1OR_G";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  async function girisYap() {
+    const girilenDeger = document.getElementById('kullanici-adi').value.trim();
+    const sifre = document.getElementById('sifre').value;
+    const hataAlani = document.getElementById('hata-mesaji');
+    hataAlani.textContent = "";
+
+    const email = girilenDeger.includes('@') ? girilenDeger : girilenDeger + '@ders.local';
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: sifre
+    });
+
+    if (error) {
+      hataAlani.textContent = "Giriş başarısız: " + error.message;
+      return;
+    }
+
+    ekraniGuncelle(data.user);
+  }
+
+  async function cikisYap() {
+    await supabaseClient.auth.signOut();
+    ekraniGuncelle(null);
+  }
+
+  function ekraniGuncelle(kullanici) {
+    if (kullanici) {
+      document.getElementById('giris-alani').style.display = 'none';
+      document.getElementById('app-alani').style.display = 'block';
+      document.getElementById('hosgeldin-mesaji').textContent = 'Hoş geldin: ' + kullanici.email;
+    } else {
+      document.getElementById('giris-alani').style.display = 'block';
+      document.getElementById('app-alani').style.display = 'none';
+    }
+  }
+
+  // Sayfa açıldığında oturum var mı kontrol et
+  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    ekraniGuncelle(session ? session.user : null);
+  });
+</script>
+
+</body>
+</html>
