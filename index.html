@@ -170,6 +170,7 @@
   <div class="card">
     <label>Derse Girecek Öğretmen</label>
     <div id="yerine-bak-sonuc">Programda bir satırdaki "Yerine Bak" butonuna tıkla.</div>
+    <div id="secilen-ogretmen-bilgisi" style="margin-top:10px; font-weight:bold; color:#16a34a;"></div>
   </div>
 </div>
 
@@ -182,6 +183,7 @@
   const GUNLUK_DERS_LIMITI = 6;
 
   let mevcutProgramSatirlari = [];
+  let mevcutAdaylar = [];
 
   async function girisYap() {
     const girilenDeger = document.getElementById('kullanici-adi').value.trim();
@@ -367,14 +369,18 @@
     const grupB = tumOgretmenler
       .filter(o => o.branch === buBranch && !grupAId.has(o.id) && uygunMu(o.id));
 
+    mevcutAdaylar = [...grupA, ...grupB];
+    document.getElementById('secilen-ogretmen-bilgisi').textContent = '';
+
     let html = '<p><strong>' + GUN_ISIMLERI[gunIndex] + ' ' + satir.period + '. saat dersi için:</strong></p>';
 
     html += '<div class="aday-basligi">Aynı sınıfa giren, boş, en az dersi olan öğretmenler:</div>';
     if (grupA.length === 0) {
       html += '<div>Uygun öğretmen yok.</div>';
     } else {
-      html += '<ul class="aday-listesi">' + grupA.map(o =>
-        '<li>' + o.full_name + ' (' + o.branch + ') - bugün ' + (gunSayaci[o.id] || 0) + ' ders</li>'
+      html += '<ul class="aday-listesi">' + grupA.map((o, i) =>
+        '<li>' + o.full_name + ' (' + o.branch + ') - bugün ' + (gunSayaci[o.id] || 0) + ' ders ' +
+        '<button class="kucuk-buton" onclick="ogretmenSec(' + i + ')">Seç</button></li>'
       ).join('') + '</ul>';
     }
 
@@ -382,12 +388,19 @@
     if (grupB.length === 0) {
       html += '<div>Uygun öğretmen yok.</div>';
     } else {
-      html += '<ul class="aday-listesi">' + grupB.map(o =>
-        '<li>' + o.full_name + ' (' + o.branch + ') - bugün ' + (gunSayaci[o.id] || 0) + ' ders</li>'
+      html += '<ul class="aday-listesi">' + grupB.map((o, i) =>
+        '<li>' + o.full_name + ' (' + o.branch + ') - bugün ' + (gunSayaci[o.id] || 0) + ' ders ' +
+        '<button class="kucuk-buton" onclick="ogretmenSec(' + (grupA.length + i) + ')">Seç</button></li>'
       ).join('') + '</ul>';
     }
 
     sonucAlani.innerHTML = html;
+  }
+
+  function ogretmenSec(index) {
+    const secilen = mevcutAdaylar[index];
+    document.getElementById('secilen-ogretmen-bilgisi').textContent =
+      'Seçilen öğretmen: ' + secilen.full_name + ' (' + secilen.branch + ')';
   }
 
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
