@@ -172,6 +172,11 @@
     <div id="yerine-bak-sonuc">Programda bir satırdaki "Yerine Bak" butonuna tıkla.</div>
     <div id="secilen-ogretmen-bilgisi" style="margin-top:10px; font-weight:bold; color:#16a34a;"></div>
   </div>
+
+  <div class="card">
+    <label>Ders Değişimi</label>
+    <div id="degisim-sonuc">Aynı sınıftan bir öğretmen seçildiğinde değişim seçenekleri burada görünecek.</div>
+  </div>
 </div>
 
 <script>
@@ -184,6 +189,8 @@
 
   let mevcutProgramSatirlari = [];
   let mevcutAdaylar = [];
+  let mevcutGrupASayisi = 0;
+  let mevcutYerineBakSatir = null;
 
   async function girisYap() {
     const girilenDeger = document.getElementById('kullanici-adi').value.trim();
@@ -312,12 +319,14 @@
 
   async function yerineBak(index) {
     const satir = mevcutProgramSatirlari[index];
+    mevcutYerineBakSatir = satir;
     const tarihStr = document.getElementById('tarih-secici').value;
     const gunIndex = gunIndexHesapla(tarihStr);
     const buOgretmenId = document.getElementById('ogretmen-secici').value;
     const buBranch = document.getElementById('ogretmen-secici').selectedOptions[0].dataset.branch;
     const sonucAlani = document.getElementById('yerine-bak-sonuc');
     sonucAlani.textContent = 'Yükleniyor...';
+    document.getElementById('degisim-sonuc').textContent = 'Aynı sınıftan bir öğretmen seçildiğinde değişim seçenekleri burada görünecek.';
 
     const { data: gunProgrami, error } = await supabaseClient
       .from('schedule_slots')
@@ -370,6 +379,7 @@
       .filter(o => o.branch === buBranch && !grupAId.has(o.id) && uygunMu(o.id));
 
     mevcutAdaylar = [...grupA, ...grupB];
+    mevcutGrupASayisi = grupA.length;
     document.getElementById('secilen-ogretmen-bilgisi').textContent = '';
 
     let html = '<p><strong>' + GUN_ISIMLERI[gunIndex] + ' ' + satir.period + '. saat dersi için:</strong></p>';
@@ -397,10 +407,66 @@
     sonucAlani.innerHTML = html;
   }
 
-  function ogretmenSec(index) {
+  async function ogretmenSec(index) {
     const secilen = mevcutAdaylar[index];
     document.getElementById('secilen-ogretmen-bilgisi').textContent =
       'Seçilen öğretmen: ' + secilen.full_name + ' (' + secilen.branch + ')';
+
+    if (index < mevcutGrupASayisi) {
+      await dersDegisimiGoster(secilen);
+    } else {
+      document.getElementById('degisim-sonuc').textContent =
+        'Bu öğretmen aynı sınıfa girmediği için ders değişimi önerisi yok.';
+    }
+  }
+
+  async function dersDegisimiGoster(secilenOgretmen) {
+    const degisimAlani = document.getElementById('degisim-sonuc');
+    degisimAlani.textContent = 'Yükleniyor...';
+
+    const buOgretmenId = document.getElementById('ogretmen-secici').value;
+    const classId = mevcutYerineBakSatir.class_id;
+
+    const { data: secilenDersleri, error } = await supabaseClient
+      .from('schedule_slots')
+      .select('day_of_week, period')
+      .eq('teacher_id', secilenOgretmen.id)
+      .eq('class_id', classId);
+
+    if (error) {
+      degisimAlani.textContent = 'Hata: ' + error.message;
+      return;
+    }
+
+    const { data: buOgretmenHaftaligi, error: err2 } = await supabaseClient
+      .from('schedule_slots')
+      .select('day_of_week, period')
+      .eq('teacher_id', buOgretmenId);
+
+    if (err2) {
+      degisimAlani.textContent = 'Hata: ' + err2.message;
+      return;
+    }
+
+    const buOgretmenMesgulSeti = new Set(
+      buOgretmenHaftaligi.map(s => s.day_of_week + '-' + s.period)
+    );
+
+    const uygunSlotlar = secilenDersleri.filter(
+      s => !buOgretmenMesgulSeti.has(s.day_of_week + '-' + s.period)
+    );
+
+    if (uygunSlotlar.length === 0) {
+      degisimAlani.innerHTML = '<p>' + secilenOgretmen.full_name + ' ile bu sınıf için uygun değişim saati bulunamadı.</p>';
+      return;
+    }
+
+    let html = '<p>' + secilenOgretmen.full_name + ' ile şu gün/saatlerde ders değişimi yapılabilir:</p>';
+    html += '<ul class="aday-listesi">' + uygunSlotlar.map(s =>
+      '<li>' + GUN_ISIMLERI[s.day_of_week] + ' - ' + s.period + '. saat</li>'
+    ).join('') + '</ul>';
+
+    degisimAlani.innerHTML = html;
   }
 
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
