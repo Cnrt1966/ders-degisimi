@@ -1,3 +1,42 @@
+
+"Aynı sınıftan öğretmen" seçildiğinde hangi gün/saatlerde takas yapılabileceğini göstereceğiz — mantık şu: seçilen öğretmenin bu sınıfa girdiği tüm gün/saatlere bakıp, o gün/saatlerde asıl (dersi olmayan) öğretmenin boş olduğu zamanları buluyoruz; bunlar gelecekte karşılıklı değişim için uygun saatler.
+
+Edited
+index_adim11.html
++10
+-0
+Şimdi ogretmenSec fonksiyonunu güncelleyip yeni dersDegisimiGoster fonksiyonunu ekleyeyim.
+
+Edited
+index_adim11.html
++57
+-1
+Test verisi ile "aynı sınıftan öğretmen" senaryosu oluşmadığı için, canlı veritabanına geçici test satırları ekleyip mantığı doğrulayacağım, sonra hemen sileceğim (senin gerçek verine dokunulmayacak).
+
+
+Used 2 tools
+Şimdi güncellenmiş kodu yerel sunucuda bu test verisiyle deneyeyim.
+
+
+Loading
+Ders Değişimi
+localhost:8734 · Opened in Browser
+
+Created launch.json, used 6 tools
++16
+-0
+Mükemmel — mantık tam beklendiği gibi çalıştı: Mehmet Demir ile Pazartesi 3. saat ve Çarşamba 2. saat'te değişim yapılabileceği doğru şekilde bulundu. Şimdi test verilerini temizleyeyim.
+
+Ran page script
+Test verileri temizlendi. Şimdi geçici test sunucusunu ve dosyalarını da kaldırıp sana Adım 13 kodunu vereyim.
+
+
+Ran a command, used a tool
+Adım 13: Ders Değişimi Bölümünü Ekleme
+index.html'i aç, kalem ikonuna tıkla, içeriği tamamen sil (Ctrl+Home, Ctrl+Shift+End, Delete), aşağıdaki kodu yapıştır, Commit changes yap.
+
+Read
+index_adim11.html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -476,3 +515,543 @@
 
 </body>
 </html>
+Ne ekledik: Aynı sınıfa giren bir öğretmeni "Seç" dediğinde, o öğretmenin bu sınıfa haftanın başka hangi gün/saatlerinde girdiğini bulup, asıl öğretmenin o saatlerde boş olup olmadığını kontrol ediyor — boşsa "değişim yapılabilir" olarak listeliyor. Aynı branştan (farklı sınıf) bir öğretmen seçilirse, değişim önerisi olmadığını belirten bir not gösteriyor.
+
+Bunu test ettim (geçici test verisiyle), doğru çalışıyor. Commit ettikten sonra haber ver, canlıda da bakayım.
+
+ders değişimi de seçilebilir olmalı
+
+Anladım — değişim önerilerini de "Seç" ile tıklanabilir yapalım.
+
+Edited
+index_adim11.html
++3
+-0
+Şimdi yerineBak içinde yeni değişim alanını temizleyeceğim, ve dersDegisimiGoster + yeni degisimSec fonksiyonunu güncelleyeceğim.
+
+Edited
+index_adim11.html
++15
+-2
+Şimdi test edeyim.
+
+
+Loading
+Ders Değişimi
+localhost:8734 · Opened in Browser
+
+Created launch.json, used 6 tools
++16
+-0
+Butonlar doğru render oldu. Şimdi birini seçmeyi test edeyim.
+
+Ran page script
+Doğru çalışıyor. Test verilerini temizleyip sana son kodu vereyim.
+
+
+Ran a command, used 2 tools
+Adım 14: Değişim Saatini Seçilebilir Yapma
+index.html'i aç, kalem ikonuna tıkla, içeriği tamamen sil (Ctrl+Home, Ctrl+Shift+End, Delete), aşağıdaki kodu yapıştır, Commit changes yap.
+
+Read
+index_adim11.html
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ders Değişimi</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #f2f4f7;
+    margin: 0;
+    padding: 20px;
+  }
+  .login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 40px);
+  }
+  .login-box {
+    background: white;
+    padding: 32px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 360px;
+  }
+  .login-box h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .login-box input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 15px;
+  }
+  .login-box button {
+    width: 100%;
+    padding: 10px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .login-box button:hover { background: #1d4ed8; }
+  #hata-mesaji {
+    color: #dc2626;
+    font-size: 13px;
+    margin-top: 8px;
+    text-align: center;
+  }
+  #app-alani {
+    display: none;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  #hosgeldin-mesaji { font-weight: bold; }
+  .topbar button {
+    padding: 8px 14px;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .card label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #444;
+  }
+  .card input, .card select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 15px;
+  }
+  .program-tablosu {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .program-tablosu th, .program-tablosu td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+    font-size: 14px;
+  }
+  .program-tablosu th { background: #f2f4f7; }
+  .kucuk-buton {
+    padding: 6px 10px;
+    background: #16a34a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .kucuk-buton:hover { background: #15803d; }
+  .aday-basligi {
+    font-weight: bold;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  .aday-listesi {
+    margin: 0 0 8px 0;
+    padding-left: 20px;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrapper" id="giris-wrapper">
+  <div id="giris-alani" class="login-box">
+    <h1>Ders Değişimi - Giriş</h1>
+    <input type="text" id="kullanici-adi" placeholder="Kullanıcı adı veya email">
+    <input type="password" id="sifre" placeholder="Şifre">
+    <button onclick="girisYap()">Giriş Yap</button>
+    <div id="hata-mesaji"></div>
+  </div>
+</div>
+
+<div id="app-alani">
+  <div class="topbar">
+    <span id="hosgeldin-mesaji"></span>
+    <button onclick="cikisYap()">Çıkış Yap</button>
+  </div>
+
+  <div class="card">
+    <label>Tarih</label>
+    <input type="date" id="tarih-secici">
+  </div>
+
+  <div class="card">
+    <label>Öğretmen</label>
+    <select id="ogretmen-secici">
+      <option value="">-- Öğretmen seçin --</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <label>Günün Programı</label>
+    <div id="program-listesi">Önce tarih ve öğretmen seçin.</div>
+  </div>
+
+  <div class="card">
+    <label>Derse Girecek Öğretmen</label>
+    <div id="yerine-bak-sonuc">Programda bir satırdaki "Yerine Bak" butonuna tıkla.</div>
+    <div id="secilen-ogretmen-bilgisi" style="margin-top:10px; font-weight:bold; color:#16a34a;"></div>
+  </div>
+
+  <div class="card">
+    <label>Ders Değişimi</label>
+    <div id="degisim-sonuc">Aynı sınıftan bir öğretmen seçildiğinde değişim seçenekleri burada görünecek.</div>
+    <div id="secilen-degisim-bilgisi" style="margin-top:10px; font-weight:bold; color:#16a34a;"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://pnkpovgpmraaduuniurz.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_N3lbUDiriU7EhHspUOY8pw_2Kw1OR_G";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const GUN_ISIMLERI = { 1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma' };
+  const GUNLUK_DERS_LIMITI = 6;
+
+  let mevcutProgramSatirlari = [];
+  let mevcutAdaylar = [];
+  let mevcutGrupASayisi = 0;
+  let mevcutYerineBakSatir = null;
+  let mevcutDegisimSlotlari = [];
+  let mevcutDegisimOgretmen = null;
+
+  async function girisYap() {
+    const girilenDeger = document.getElementById('kullanici-adi').value.trim();
+    const sifre = document.getElementById('sifre').value;
+    const hataAlani = document.getElementById('hata-mesaji');
+    hataAlani.textContent = "";
+
+    const email = girilenDeger.includes('@') ? girilenDeger : girilenDeger + '@ders.local';
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: sifre
+    });
+
+    if (error) {
+      hataAlani.textContent = "Giriş başarısız: " + error.message;
+      return;
+    }
+
+    ekraniGuncelle(data.user);
+  }
+
+  async function cikisYap() {
+    await supabaseClient.auth.signOut();
+    ekraniGuncelle(null);
+  }
+
+  function ekraniGuncelle(kullanici) {
+    if (kullanici) {
+      document.getElementById('giris-wrapper').style.display = 'none';
+      document.getElementById('app-alani').style.display = 'block';
+      document.getElementById('hosgeldin-mesaji').textContent = 'Hoş geldin: ' + kullanici.email;
+      oturumBaslat();
+    } else {
+      document.getElementById('giris-wrapper').style.display = 'flex';
+      document.getElementById('app-alani').style.display = 'none';
+    }
+  }
+
+  async function oturumBaslat() {
+    const tarihInput = document.getElementById('tarih-secici');
+    const bugun = new Date();
+    tarihInput.value = bugun.toISOString().split('T')[0];
+
+    await ogretmenleriYukle();
+
+    tarihInput.addEventListener('change', programGetir);
+    document.getElementById('ogretmen-secici').addEventListener('change', programGetir);
+  }
+
+  async function ogretmenleriYukle() {
+    const secici = document.getElementById('ogretmen-secici');
+    secici.innerHTML = '<option value="">-- Öğretmen seçin --</option>';
+
+    const { data, error } = await supabaseClient
+      .from('teachers')
+      .select('id, full_name, branch')
+      .order('full_name');
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    data.forEach(ogretmen => {
+      const secenek = document.createElement('option');
+      secenek.value = ogretmen.id;
+      secenek.textContent = ogretmen.full_name + ' (' + ogretmen.branch + ')';
+      secenek.dataset.branch = ogretmen.branch;
+      secici.appendChild(secenek);
+    });
+  }
+
+  function gunIndexHesapla(tarihStr) {
+    const tarih = new Date(tarihStr + 'T00:00:00');
+    const jsGun = tarih.getDay();
+    if (jsGun === 0 || jsGun === 6) return null;
+    return jsGun;
+  }
+
+  async function programGetir() {
+    const tarihStr = document.getElementById('tarih-secici').value;
+    const ogretmenId = document.getElementById('ogretmen-secici').value;
+    const listeAlani = document.getElementById('program-listesi');
+
+    document.getElementById('yerine-bak-sonuc').textContent = 'Programda bir satırdaki "Yerine Bak" butonuna tıkla.';
+
+    if (!tarihStr || !ogretmenId) {
+      listeAlani.textContent = 'Önce tarih ve öğretmen seçin.';
+      return;
+    }
+
+    const gunIndex = gunIndexHesapla(tarihStr);
+    if (gunIndex === null) {
+      listeAlani.textContent = 'Seçilen gün hafta sonu, ders yok.';
+      return;
+    }
+
+    const { data, error } = await supabaseClient
+      .from('schedule_slots')
+      .select('period, class_id, classes(name)')
+      .eq('teacher_id', ogretmenId)
+      .eq('day_of_week', gunIndex)
+      .order('period');
+
+    if (error) {
+      listeAlani.textContent = 'Hata: ' + error.message;
+      return;
+    }
+
+    mevcutProgramSatirlari = data;
+
+    if (data.length === 0) {
+      listeAlani.textContent = GUN_ISIMLERI[gunIndex] + ' günü bu öğretmenin dersi yok.';
+      return;
+    }
+
+    let html = '<table class="program-tablosu"><tr><th>Saat</th><th>Sınıf</th><th></th></tr>';
+    data.forEach((satir, i) => {
+      html += '<tr><td>' + satir.period + '</td><td>' + satir.classes.name + '</td>' +
+        '<td><button class="kucuk-buton" onclick="yerineBak(' + i + ')">Yerine Bak</button></td></tr>';
+    });
+    html += '</table>';
+    listeAlani.innerHTML = html;
+  }
+
+  async function yerineBak(index) {
+    const satir = mevcutProgramSatirlari[index];
+    mevcutYerineBakSatir = satir;
+    const tarihStr = document.getElementById('tarih-secici').value;
+    const gunIndex = gunIndexHesapla(tarihStr);
+    const buOgretmenId = document.getElementById('ogretmen-secici').value;
+    const buBranch = document.getElementById('ogretmen-secici').selectedOptions[0].dataset.branch;
+    const sonucAlani = document.getElementById('yerine-bak-sonuc');
+    sonucAlani.textContent = 'Yükleniyor...';
+    document.getElementById('degisim-sonuc').textContent = 'Aynı sınıftan bir öğretmen seçildiğinde değişim seçenekleri burada görünecek.';
+    document.getElementById('secilen-degisim-bilgisi').textContent = '';
+
+    const { data: gunProgrami, error } = await supabaseClient
+      .from('schedule_slots')
+      .select('teacher_id, class_id, period')
+      .eq('day_of_week', gunIndex);
+
+    if (error) {
+      sonucAlani.textContent = 'Hata: ' + error.message;
+      return;
+    }
+
+    const { data: tumOgretmenler, error: err2 } = await supabaseClient
+      .from('teachers')
+      .select('id, full_name, branch');
+
+    if (err2) {
+      sonucAlani.textContent = 'Hata: ' + err2.message;
+      return;
+    }
+
+    const gunSayaci = {};
+    gunProgrami.forEach(s => {
+      gunSayaci[s.teacher_id] = (gunSayaci[s.teacher_id] || 0) + 1;
+    });
+
+    const buSaatMesgul = new Set(
+      gunProgrami.filter(s => s.period === satir.period).map(s => s.teacher_id)
+    );
+
+    const ayniSinifOgretmenleri = new Set(
+      gunProgrami
+        .filter(s => s.class_id === satir.class_id && s.teacher_id !== buOgretmenId)
+        .map(s => s.teacher_id)
+    );
+
+    function uygunMu(ogretmenId) {
+      if (ogretmenId === buOgretmenId) return false;
+      if (buSaatMesgul.has(ogretmenId)) return false;
+      if ((gunSayaci[ogretmenId] || 0) >= GUNLUK_DERS_LIMITI) return false;
+      return true;
+    }
+
+    const grupA = tumOgretmenler
+      .filter(o => ayniSinifOgretmenleri.has(o.id) && uygunMu(o.id))
+      .sort((a, b) => (gunSayaci[a.id] || 0) - (gunSayaci[b.id] || 0));
+
+    const grupAId = new Set(grupA.map(o => o.id));
+
+    const grupB = tumOgretmenler
+      .filter(o => o.branch === buBranch && !grupAId.has(o.id) && uygunMu(o.id));
+
+    mevcutAdaylar = [...grupA, ...grupB];
+    mevcutGrupASayisi = grupA.length;
+    document.getElementById('secilen-ogretmen-bilgisi').textContent = '';
+
+    let html = '<p><strong>' + GUN_ISIMLERI[gunIndex] + ' ' + satir.period + '. saat dersi için:</strong></p>';
+
+    html += '<div class="aday-basligi">Aynı sınıfa giren, boş, en az dersi olan öğretmenler:</div>';
+    if (grupA.length === 0) {
+      html += '<div>Uygun öğretmen yok.</div>';
+    } else {
+      html += '<ul class="aday-listesi">' + grupA.map((o, i) =>
+        '<li>' + o.full_name + ' (' + o.branch + ') - bugün ' + (gunSayaci[o.id] || 0) + ' ders ' +
+        '<button class="kucuk-buton" onclick="ogretmenSec(' + i + ')">Seç</button></li>'
+      ).join('') + '</ul>';
+    }
+
+    html += '<div class="aday-basligi">Aynı branştan, boş öğretmenler:</div>';
+    if (grupB.length === 0) {
+      html += '<div>Uygun öğretmen yok.</div>';
+    } else {
+      html += '<ul class="aday-listesi">' + grupB.map((o, i) =>
+        '<li>' + o.full_name + ' (' + o.branch + ') - bugün ' + (gunSayaci[o.id] || 0) + ' ders ' +
+        '<button class="kucuk-buton" onclick="ogretmenSec(' + (grupA.length + i) + ')">Seç</button></li>'
+      ).join('') + '</ul>';
+    }
+
+    sonucAlani.innerHTML = html;
+  }
+
+  async function ogretmenSec(index) {
+    const secilen = mevcutAdaylar[index];
+    document.getElementById('secilen-ogretmen-bilgisi').textContent =
+      'Seçilen öğretmen: ' + secilen.full_name + ' (' + secilen.branch + ')';
+
+    if (index < mevcutGrupASayisi) {
+      await dersDegisimiGoster(secilen);
+    } else {
+      document.getElementById('degisim-sonuc').textContent =
+        'Bu öğretmen aynı sınıfa girmediği için ders değişimi önerisi yok.';
+    }
+  }
+
+  async function dersDegisimiGoster(secilenOgretmen) {
+    const degisimAlani = document.getElementById('degisim-sonuc');
+    degisimAlani.textContent = 'Yükleniyor...';
+    document.getElementById('secilen-degisim-bilgisi').textContent = '';
+    mevcutDegisimOgretmen = secilenOgretmen;
+
+    const buOgretmenId = document.getElementById('ogretmen-secici').value;
+    const classId = mevcutYerineBakSatir.class_id;
+
+    const { data: secilenDersleri, error } = await supabaseClient
+      .from('schedule_slots')
+      .select('day_of_week, period')
+      .eq('teacher_id', secilenOgretmen.id)
+      .eq('class_id', classId);
+
+    if (error) {
+      degisimAlani.textContent = 'Hata: ' + error.message;
+      return;
+    }
+
+    const { data: buOgretmenHaftaligi, error: err2 } = await supabaseClient
+      .from('schedule_slots')
+      .select('day_of_week, period')
+      .eq('teacher_id', buOgretmenId);
+
+    if (err2) {
+      degisimAlani.textContent = 'Hata: ' + err2.message;
+      return;
+    }
+
+    const buOgretmenMesgulSeti = new Set(
+      buOgretmenHaftaligi.map(s => s.day_of_week + '-' + s.period)
+    );
+
+    const uygunSlotlar = secilenDersleri.filter(
+      s => !buOgretmenMesgulSeti.has(s.day_of_week + '-' + s.period)
+    );
+
+    mevcutDegisimSlotlari = uygunSlotlar;
+
+    if (uygunSlotlar.length === 0) {
+      degisimAlani.innerHTML = '<p>' + secilenOgretmen.full_name + ' ile bu sınıf için uygun değişim saati bulunamadı.</p>';
+      return;
+    }
+
+    let html = '<p>' + secilenOgretmen.full_name + ' ile şu gün/saatlerde ders değişimi yapılabilir:</p>';
+    html += '<ul class="aday-listesi">' + uygunSlotlar.map((s, i) =>
+      '<li>' + GUN_ISIMLERI[s.day_of_week] + ' - ' + s.period + '. saat ' +
+      '<button class="kucuk-buton" onclick="degisimSec(' + i + ')">Seç</button></li>'
+    ).join('') + '</ul>';
+
+    degisimAlani.innerHTML = html;
+  }
+
+  function degisimSec(index) {
+    const slot = mevcutDegisimSlotlari[index];
+    document.getElementById('secilen-degisim-bilgisi').textContent =
+      'Seçilen değişim: ' + mevcutDegisimOgretmen.full_name + ' ile ' +
+      GUN_ISIMLERI[slot.day_of_week] + ' - ' + slot.period + '. saat';
+  }
+
+  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    ekraniGuncelle(session ? session.user : null);
+  });
+</script>
+
+</body>
+</html>
+Bunu test ettim (yine geçici test verisiyle, hemen sildim), doğru çalışıyor: bir değişim saatine "Seç" dediğinde "Seçilen değişim: ... ile ... - ... saat" yazısı doğru görünüyor.
+
+Şu an seçimler sadece ekranda gösteriliyor, henüz veritabanına kalıcı olarak kaydedilmiyor — bu, sıradaki "Düzenleme Kaydı" adımında (kim kaç kez doldurdu/gelmedi istatistiği) birlikte ele alınacak. Commit ettikten sonra haber ver, canlıda test edelim.
+
+
+
