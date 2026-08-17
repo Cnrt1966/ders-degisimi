@@ -59,7 +59,7 @@
   }
   #app-alani {
     display: none;
-    max-width: 480px;
+    max-width: 560px;
     margin: 0 auto;
   }
   .topbar {
@@ -109,6 +109,27 @@
     font-size: 14px;
   }
   .program-tablosu th { background: #f2f4f7; }
+  .kucuk-buton {
+    padding: 6px 10px;
+    background: #16a34a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .kucuk-buton:hover { background: #15803d; }
+  .aday-basligi {
+    font-weight: bold;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  .aday-listesi {
+    margin: 0 0 8px 0;
+    padding-left: 20px;
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>
@@ -145,6 +166,11 @@
     <label>Günün Programı</label>
     <div id="program-listesi">Önce tarih ve öğretmen seçin.</div>
   </div>
+
+  <div class="card">
+    <label>Derse Girecek Öğretmen</label>
+    <div id="yerine-bak-sonuc">Programda bir satırdaki "Yerine Bak" butonuna tıkla.</div>
+  </div>
 </div>
 
 <script>
@@ -153,6 +179,9 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const GUN_ISIMLERI = { 1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma' };
+  const GUNLUK_DERS_LIMITI = 6;
+
+  let mevcutProgramSatirlari = [];
 
   async function girisYap() {
     const girilenDeger = document.getElementById('kullanici-adi').value.trim();
@@ -221,6 +250,7 @@
       const secenek = document.createElement('option');
       secenek.value = ogretmen.id;
       secenek.textContent = ogretmen.full_name + ' (' + ogretmen.branch + ')';
+      secenek.dataset.branch = ogretmen.branch;
       secici.appendChild(secenek);
     });
   }
@@ -237,6 +267,8 @@
     const ogretmenId = document.getElementById('ogretmen-secici').value;
     const listeAlani = document.getElementById('program-listesi');
 
+    document.getElementById('yerine-bak-sonuc').textContent = 'Programda bir satırdaki "Yerine Bak" butonuna tıkla.';
+
     if (!tarihStr || !ogretmenId) {
       listeAlani.textContent = 'Önce tarih ve öğretmen seçin.';
       return;
@@ -250,7 +282,7 @@
 
     const { data, error } = await supabaseClient
       .from('schedule_slots')
-      .select('period, classes(name)')
+      .select('period, class_id, classes(name)')
       .eq('teacher_id', ogretmenId)
       .eq('day_of_week', gunIndex)
       .order('period');
@@ -260,17 +292,102 @@
       return;
     }
 
+    mevcutProgramSatirlari = data;
+
     if (data.length === 0) {
       listeAlani.textContent = GUN_ISIMLERI[gunIndex] + ' günü bu öğretmenin dersi yok.';
       return;
     }
 
-    let html = '<table class="program-tablosu"><tr><th>Saat</th><th>Sınıf</th></tr>';
-    data.forEach(satir => {
-      html += '<tr><td>' + satir.period + '</td><td>' + satir.classes.name + '</td></tr>';
+    let html = '<table class="program-tablosu"><tr><th>Saat</th><th>Sınıf</th><th></th></tr>';
+    data.forEach((satir, i) => {
+      html += '<tr><td>' + satir.period + '</td><td>' + satir.classes.name + '</td>' +
+        '<td><button class="kucuk-buton" onclick="yerineBak(' + i + ')">Yerine Bak</button></td></tr>';
     });
     html += '</table>';
     listeAlani.innerHTML = html;
+  }
+
+  async function yerineBak(index) {
+    const satir = mevcutProgramSatirlari[index];
+    const tarihStr = document.getElementById('tarih-secici').value;
+    const gunIndex = gunIndexHesapla(tarihStr);
+    const buOgretmenId = document.getElementById('ogretmen-secici').value;
+    const buBranch = document.getElementById('ogretmen-secici').selectedOptions[0].dataset.branch;
+    const sonucAlani = document.getElementById('yerine-bak-sonuc');
+    sonucAlani.textContent = 'Yükleniyor...';
+
+    const { data: gunProgrami, error } = await supabaseClient
+      .from('schedule_slots')
+      .select('teacher_id, class_id, period')
+      .eq('day_of_week', gunIndex);
+
+    if (error) {
+      sonucAlani.textContent = 'Hata: ' + error.message;
+      return;
+    }
+
+    const { data: tumOgretmenler, error: err2 } = await supabaseClient
+      .from('teachers')
+      .select('id, full_name, branch');
+
+    if (err2) {
+      sonucAlani.textContent = 'Hata: ' + err2.message;
+      return;
+    }
+
+    const gunSayaci = {};
+    gunProgrami.forEach(s => {
+      gunSayaci[s.teacher_id] = (gunSayaci[s.teacher_id] || 0) + 1;
+    });
+
+    const buSaatMesgul = new Set(
+      gunProgrami.filter(s => s.period === satir.period).map(s => s.teacher_id)
+    );
+
+    const ayniSinifOgretmenleri = new Set(
+      gunProgrami
+        .filter(s => s.class_id === satir.class_id && s.teacher_id !== buOgretmenId)
+        .map(s => s.teacher_id)
+    );
+
+    function uygunMu(ogretmenId) {
+      if (ogretmenId === buOgretmenId) return false;
+      if (buSaatMesgul.has(ogretmenId)) return false;
+      if ((gunSayaci[ogretmenId] || 0) >= GUNLUK_DERS_LIMITI) return false;
+      return true;
+    }
+
+    const grupA = tumOgretmenler
+      .filter(o => ayniSinifOgretmenleri.has(o.id) && uygunMu(o.id))
+      .sort((a, b) => (gunSayaci[a.id] || 0) - (gunSayaci[b.id] || 0));
+
+    const grupAId = new Set(grupA.map(o => o.id));
+
+    const grupB = tumOgretmenler
+      .filter(o => o.branch === buBranch && !grupAId.has(o.id) && uygunMu(o.id));
+
+    let html = '<p><strong>' + GUN_ISIMLERI[gunIndex] + ' ' + satir.period + '. saat dersi için:</strong></p>';
+
+    html += '<div class="aday-basligi">Aynı sınıfa giren, boş, en az dersi olan öğretmenler:</div>';
+    if (grupA.length === 0) {
+      html += '<div>Uygun öğretmen yok.</div>';
+    } else {
+      html += '<ul class="aday-listesi">' + grupA.map(o =>
+        '<li>' + o.full_name + ' (' + o.branch + ') - bugün ' + (gunSayaci[o.id] || 0) + ' ders</li>'
+      ).join('') + '</ul>';
+    }
+
+    html += '<div class="aday-basligi">Aynı branştan, boş öğretmenler:</div>';
+    if (grupB.length === 0) {
+      html += '<div>Uygun öğretmen yok.</div>';
+    } else {
+      html += '<ul class="aday-listesi">' + grupB.map(o =>
+        '<li>' + o.full_name + ' (' + o.branch + ') - bugün ' + (gunSayaci[o.id] || 0) + ' ders</li>'
+      ).join('') + '</ul>';
+    }
+
+    sonucAlani.innerHTML = html;
   }
 
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
